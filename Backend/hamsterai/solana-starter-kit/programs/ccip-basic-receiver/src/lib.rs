@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use anchor_spl::token::TokenAccount;
@@ -19,9 +20,8 @@ mod state;
 // Re-export account structures for use in program entry points
 use context::*;
 
-declare_id!("BqmcnLFSbKwyMEgi7VhVeJCis1wW26VySztF34CJrKFq");
-
-/// Token program IDs
+declare_id!("Hk5s5Zg73hwRtC5qqbnS54ueajD6gRBHjxtuS6De7HH1");
+ /// Token program IDs
 pub mod token_programs {
     use anchor_lang::solana_program::pubkey::Pubkey;
     use anchor_spl::token::ID as TOKEN_PROGRAM_ID;
