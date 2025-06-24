@@ -104,6 +104,7 @@ async function tokenTransfer(): Promise<void> {
   // Parse command line arguments
   const cmdOptions = parseCCIPArgs("token-transfer");
 
+  
   // Execute the CCIP script with our configuration
   await executeCCIPScript({
     scriptName: "token-transfer",
