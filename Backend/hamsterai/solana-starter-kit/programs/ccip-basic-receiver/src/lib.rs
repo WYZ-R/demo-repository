@@ -20,7 +20,8 @@ mod state;
 // Re-export account structures for use in program entry points
 use context::*;
 
-declare_id!("Hk5s5Zg73hwRtC5qqbnS54ueajD6gRBHjxtuS6De7HH1");
+declare_id!("71FvYdgqSuSVvfNYyLUT8Qy16VSEVGd145v7sg8E3uDQ");
+
  /// Token program IDs
 pub mod token_programs {
     use anchor_lang::solana_program::pubkey::Pubkey;
