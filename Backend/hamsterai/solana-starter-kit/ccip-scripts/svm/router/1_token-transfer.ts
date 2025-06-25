@@ -49,6 +49,8 @@ import {
 // Get configuration
 const config = getCCIPSVMConfig(ChainId.SOLANA_DEVNET);
 
+const cmdOptions = parseCCIPArgs("token-transfer");
+
 // =================================================================
 // CCIP MESSAGE CONFIGURATION
 // Core parameters that will be sent in the CCIP message
@@ -58,7 +60,7 @@ const CCIP_MESSAGE_CONFIG: CCIPMessageConfig = {
   destinationChain: ChainId.ETHEREUM_SEPOLIA,
   destinationChainSelector:
     CHAIN_SELECTORS[ChainId.ETHEREUM_SEPOLIA].toString(),
-  evmReceiverAddress: "0x4aEeE376E7b9F0fAb9883382Bd5f9c8D22764ABb",
+  evmReceiverAddress: cmdOptions.receiver ,
 
   // Token transfers configuration - supports multiple tokens
   tokenAmounts: [
@@ -102,8 +104,8 @@ const SCRIPT_CONFIG = {
  */
 async function tokenTransfer(): Promise<void> {
   // Parse command line arguments
-  const cmdOptions = parseCCIPArgs("token-transfer");
 
+  
   // Execute the CCIP script with our configuration
   await executeCCIPScript({
     scriptName: "token-transfer",

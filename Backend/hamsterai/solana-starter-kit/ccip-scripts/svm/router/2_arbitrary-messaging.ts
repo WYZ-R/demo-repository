@@ -38,6 +38,8 @@ import {
   CCIPMessageConfig,
 } from "../utils";
 
+
+const cmdOptions = parseCCIPArgs("arbitrary-messaging");
 // =================================================================
 // CCIP MESSAGE CONFIGURATION
 // Core parameters that will be sent in the CCIP message
@@ -47,7 +49,7 @@ const CCIP_MESSAGE_CONFIG: CCIPMessageConfig = {
   destinationChain: ChainId.ETHEREUM_SEPOLIA,
   destinationChainSelector:
     CHAIN_SELECTORS[ChainId.ETHEREUM_SEPOLIA].toString(),
-  evmReceiverAddress: "0x9d087fC03ae39b088326b67fA3C788236645b717",
+  evmReceiverAddress: cmdOptions.receiver, // EVM address to receive the message
 
   // Token transfers configuration - empty array for arbitrary messaging
   tokenAmounts: [],
@@ -86,7 +88,7 @@ const SCRIPT_CONFIG = {
  */
 async function arbitraryMessaging(): Promise<void> {
   // Parse command line arguments
-  const cmdOptions = parseCCIPArgs("arbitrary-messaging");
+ 
 
   // Execute the CCIP script with our configuration
   await executeCCIPScript({

@@ -51,6 +51,10 @@ export interface CCIPSendOptions extends CommonOptions {
   
   /** Multiple token transfers support - internal usage */
   tokenAmounts?: Array<{ tokenMint: string, amount: string | number }>;
+
+  receiver?: string; // Receiver address for token transfers
+
+  messageData?: string; // Message data for arbitrary messaging
 }
 
 /**
@@ -274,6 +278,7 @@ export interface TokenTransfer {
 
 export interface CCIPOptions extends CCIPSendOptions {
   tokenAmounts?: TokenTransfer[];
+  receiver?: string; // Receiver address for token transfers
 }
 
 /**
@@ -333,6 +338,16 @@ export function parseCCIPArgs(
       if (!options.tokenAmounts) {
         options.tokenAmount = args[i + 1];
       }
+      i++;
+    }
+    else if(args[i] == "--receiver" && i + 1 < args.length) {
+      // Handle receiver address for token transfers
+      options.receiver = args[i + 1];
+      i++;
+    }
+    else if(args[i]=="--message"&& i + 1 < args.length) {
+      // Handle message data for arbitrary messaging
+      options.messageData = args[i + 1];
       i++;
     }
   }

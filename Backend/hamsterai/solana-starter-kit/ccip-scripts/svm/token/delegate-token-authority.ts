@@ -79,8 +79,10 @@ interface TokenDelegateOptions extends ReturnType<typeof parseCommonArgs> {
   tokenProgramId?: string | PublicKey;
   delegationType?: DelegationType;
   customDelegate?: string | PublicKey;
+  TargetToken?: string; // Optional target token for custom delegation
 }
 
+const cmdOptions = parseTokenDelegateArgs();
 // =================================================================
 // CONFIGURATION
 // =================================================================
@@ -100,7 +102,7 @@ const TOKEN_DELEGATION_CONFIG = {
     },
     {
       // BnM token
-      tokenMint: config.bnmTokenMint,
+      tokenMint: cmdOptions.TargetToken|| config.bnmTokenMint,
       // Will determine program ID dynamically
       delegationType: "fee-billing" as DelegationType, // Must use fee-billing PDA for ccip_send compatibility
       amount: MAX_UINT64, // Unlimited approval
@@ -163,6 +165,10 @@ function parseTokenDelegateArgs(): TokenDelegateOptions {
       i++;
     } else if (args[i] === "--custom-delegate" && i + 1 < args.length) {
       options.customDelegate = args[i + 1];
+      i++;
+    }
+    else if (args[i] === "--token" && i + 1 < args.length) {
+      options.TargetToken = args[i + 1];
       i++;
     }
   }
@@ -437,8 +443,14 @@ async function processTokenDelegation(
 async function delegateTokenAuthority(): Promise<void> {
   try {
     // Parse command line arguments
-    const cmdOptions = parseTokenDelegateArgs();
-
+    
+    if (cmdOptions.TargetToken) {
+      try {
+        new PublicKey(cmdOptions.TargetToken); // Will throw if invalid
+      } catch (error) {
+        throw new Error(`Invalid  token mint address: ${cmdOptions.TargetToken}`);
+      }
+    }
     // Create logger with appropriate level
     const logger = createLogger("token-delegate", {
       level: cmdOptions.logLevel ?? LogLevel.INFO,

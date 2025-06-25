@@ -52,6 +52,7 @@ interface TokenApprovalConfig {
   tokenMint: PublicKey | string;
   description: string;
   delegationType: DelegationType;
+  
 }
 
 /**
@@ -60,6 +61,7 @@ interface TokenApprovalConfig {
 interface TokenApprovalOptions extends ReturnType<typeof parseCommonArgs> {
   delegationType?: DelegationType;
   customDelegate?: string | PublicKey;
+  token?: string; // Optional address for custom tokens
 }
 
 /**
@@ -77,6 +79,7 @@ interface TokenApprovalStatus {
   matchesExpectedDelegate: boolean;
 }
 
+const cmdOptions = parseTokenApprovalArgs();
 const TOKEN_APPROVAL_CONFIG = {
   // Tokens to check
   tokensToCheck: [
@@ -87,8 +90,8 @@ const TOKEN_APPROVAL_CONFIG = {
       delegationType: "fee-billing" as DelegationType,
     },
     {
-      // BnM token - using config value directly
-      tokenMint: config.bnmTokenMint,
+      // token - using config value directly
+      tokenMint: cmdOptions.token,
       description: "BnM Token",
       delegationType: "fee-billing" as DelegationType, // Must use fee-billing for ccip_send compatibility
     },
@@ -139,6 +142,10 @@ function parseTokenApprovalArgs(): TokenApprovalOptions {
       i++;
     } else if (args[i] === "--custom-delegate" && i + 1 < args.length) {
       options.customDelegate = args[i + 1];
+      i++;
+    }
+    else if (args[i]=="--token" && i + 1 < args.length) {
+      options.token = args[i + 1];
       i++;
     }
   }
@@ -367,7 +374,6 @@ async function checkTokenApprovals(
 async function checkTokenApprovalEntrypoint(): Promise<void> {
   try {
     // Parse command line arguments
-    const cmdOptions = parseTokenApprovalArgs();
 
     // Create logger with appropriate level
     const logger = createLogger("token-approval", {

@@ -38,7 +38,7 @@ const config = getCCIPSVMConfig(ChainId.SOLANA_DEVNET);
 const WRAP_SOL_CONFIG = {
   // Default amount of lamports to wrap (absolute raw value)
   // 100,000,000 lamports = 0.1 SOL
-  defaultAmount: "100000000",
+  defaultAmount: "0.1",
 
   // Description for token information
   tokenDescription: "Wrapped SOL (wSOL)",
@@ -49,6 +49,7 @@ const WRAP_SOL_CONFIG = {
  */
 interface WrapSolOptions extends ReturnType<typeof parseTokenArgs> {
   logLevel?: LogLevel;
+  amount: string; // Amount to wrap in lamports (absolute value)
 }
 
 /**
@@ -68,6 +69,7 @@ function parseWrapSolArgs(): WrapSolOptions {
   const args = process.argv.slice(2);
   const options: WrapSolOptions = {
     ...tokenOptions,
+    amount: WRAP_SOL_CONFIG.defaultAmount, // Default amount
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -78,6 +80,11 @@ function parseWrapSolArgs(): WrapSolOptions {
       ) {
         options.logLevel = logLevel as unknown as LogLevel;
       }
+      i++;
+    }
+    if( args[i] === "--amount" && i + 1 < args.length) {
+      // Parse amount as a string to handle large numbers
+      options.amount =args[i + 1];
       i++;
     }
   }
@@ -103,9 +110,22 @@ async function wrapSolToToken(
   walletKeypair: any
 ): Promise<WrapSolResult> {
   // Convert lamports to BigInt to handle large numbers safely
-  const lamportsBigInt = BigInt(lamports);
+    // Step 1: 统一转换为数值类型
+    let numericValue: number;
+    if (typeof lamports === 'bigint') {
+      numericValue = Number(lamports); // BigInt 转 Number（需注意精度风险）
+    } else if (typeof lamports === 'string') {
+      numericValue = parseFloat(lamports); // 字符串转浮点数
+    } else {
+      numericValue = lamports; // 直接使用数字
+    }
 
-  // Convert to SOL for display purposes only
+      // Step 2: 转换为 lamports 单位（乘以 10^9 并四舍五入）
+    const lamportsValue = Math.round(numericValue * LAMPORTS_PER_SOL);
+
+    // Step 3: 安全转换为 BigInt
+    const lamportsBigInt = BigInt(lamportsValue);
+    // Convert to SOL for display purposes only
   const solAmount = Number(lamportsBigInt) / LAMPORTS_PER_SOL;
 
   logger.info(
