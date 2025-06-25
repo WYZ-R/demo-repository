@@ -19,6 +19,7 @@
  * --amount          : Amount of tokens to send (in raw format with all decimals, e.g., "1000000000000000" for 0.001 with 18 decimals)
  * --compute-units   : Solana compute units
  * --log-level       : Logging verbosity (0-5, where 0 is most verbose)
+ * --token-address  : Token address to transfer (deprecated, use --token-amounts)
  */
 
 import { parseScriptArgs } from "../utils/message-utils";
@@ -45,6 +46,7 @@ const initialLogger = createLogger("token-transfer", {
 // Get configuration
 const sourceChainConfig = getEVMConfig(ChainId.ETHEREUM_SEPOLIA);
 
+const cmdOptions = parseScriptArgs();
 // =================================================================
 // TOKEN TRANSFER CONFIGURATION
 // Edit these values to customize your token transfer
@@ -56,7 +58,7 @@ const MESSAGE_CONFIG = {
   tokenAmounts: [
     {
       // The BnM token address on the source chain
-      address: sourceChainConfig.bnmTokenAddress,
+      address: cmdOptions.tokenAddress || sourceChainConfig.bnmTokenAddress,
 
       // Token amount in raw format (with all decimals included)
       // IMPORTANT: This must be the full raw amount, not a decimal value
@@ -86,7 +88,7 @@ const MESSAGE_CONFIG = {
 
     // Token receiver wallet address (where tokens will arrive)
     // This must be a Solana wallet public key
-    tokenReceiver: "EPUjBP3Xf76K1VKsDSc6GupBWE8uykNksCLJgXZn87CB",
+    tokenReceiver: cmdOptions.tokenReceiver ,
 
     // Additional accounts to make writeable (for complex use cases)
     accounts: [],
@@ -106,7 +108,7 @@ async function tokenTransfer(): Promise<void> {
 
   try {
     // STEP 1: Get configuration from both hardcoded values and optional command line args
-    const cmdOptions = parseScriptArgs();
+  
 
     // Convert the MESSAGE_CONFIG.tokenAmounts to the format expected by the SDK
     const configTokenAmounts = MESSAGE_CONFIG.tokenAmounts.map((ta) => ({
