@@ -116,6 +116,10 @@ export interface CommonOptions {
 
   /** Source chain ID to use for the transaction */
   chainId?: ChainId;
+
+  tokenAddress?: string; // Deprecated, use tokenAmounts
+
+  
 }
 
 /**
@@ -251,6 +255,12 @@ export function parseCommonArgs(): CommonOptions {
       );
     }
   }
+
+    // Parse BnM token address
+    const TokenAddressIndex = args.indexOf("--token-address");
+    if (TokenAddressIndex >= 0 && args.length > TokenAddressIndex + 1) {
+      options.tokenAddress = args[TokenAddressIndex + 1];
+    }
 
   return options;
 }

@@ -38,6 +38,7 @@ export interface CCIPScriptOptions {
     amount: string;
   }>;
   chainId: ChainId;
+  tokenAddress?: string; // Deprecated, use tokenAmounts
 }
 
 /**
