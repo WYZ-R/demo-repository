@@ -9,7 +9,8 @@ import {
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
-  Filter
+  Filter,
+  ArrowRight
 } from 'lucide-react';
 import { 
   InvestmentExecutionStatus, 
