@@ -15,10 +15,13 @@ import {
   DollarSign,
   Target,
   Loader2,
+  History,
 } from "lucide-react";
 
 import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
 import { chatService, ChatMessage, InvestmentIntent } from "../services/chatService";
+import InvestmentExecutionModal from "./InvestmentExecutionModal";
+import TransactionHistoryModal from "./TransactionHistoryModal";
 
 // 聊天会话接口定义，用于管理多个聊天对话
 interface ChatSession {
@@ -59,6 +62,12 @@ const ChatInterface: React.FC = () => {
   
   // 错误信息状态
   const [error, setError] = useState<string | null>(null);
+  
+  // 投资执行模态框状态
+  const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false);
+  
+  // 交易历史模态框状态
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
   // DOM引用：用于自动滚动到消息底部
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -274,6 +283,13 @@ const ChatInterface: React.FC = () => {
     }
   };
 
+  // 处理执行投资
+  const handleExecuteInvestment = () => {
+    if (lastIntent) {
+      setIsExecutionModalOpen(true);
+    }
+  };
+
   // 渲染投资意图识别卡片的函数
   const renderIntentCard = (intent: InvestmentIntent) => {
     // 根据意图类型返回对应图标
@@ -299,19 +315,32 @@ const ChatInterface: React.FC = () => {
     return (
       <div className="mt-4 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200">
         {/* 意图卡片头部：图标、标题和置信度 */}
-        <div className="flex items-center space-x-2 mb-3">
-          <div className={`w-8 h-8 bg-gradient-to-r ${getIntentColor(intent.intent)} rounded-lg flex items-center justify-center text-white`}>
-            {getIntentIcon(intent.intent)}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            <div className={`w-8 h-8 bg-gradient-to-r ${getIntentColor(intent.intent)} rounded-lg flex items-center justify-center text-white`}>
+              {getIntentIcon(intent.intent)}
+            </div>
+            <span className="font-semibold text-slate-800">Investment Intent Recognition</span>
+            {/* 置信度标签，根据置信度高低显示不同颜色 */}
+            <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+              intent.confidence > 0.8 ? 'bg-green-100 text-green-700' :
+              intent.confidence > 0.6 ? 'bg-yellow-100 text-yellow-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              Confidence: {(intent.confidence * 100).toFixed(0)}%
+            </span>
           </div>
-          <span className="font-semibold text-slate-800">Investment Intent Recognition</span>
-          {/* 置信度标签，根据置信度高低显示不同颜色 */}
-          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-            intent.confidence > 0.8 ? 'bg-green-100 text-green-700' :
-            intent.confidence > 0.6 ? 'bg-yellow-100 text-yellow-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            Confidence: {(intent.confidence * 100).toFixed(0)}%
-          </span>
+          
+          {/* 执行按钮 */}
+          {(intent.intent === 'invest' || intent.intent === 'rebalance' || intent.intent === 'withdraw') && (
+            <button
+              onClick={handleExecuteInvestment}
+              className="px-3 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md flex items-center space-x-1"
+            >
+              <span>Execute</span>
+              <TrendingUp className="w-3 h-3 ml-1" />
+            </button>
+          )}
         </div>
         
         {/* 显示解析出的实体信息 */}
@@ -448,8 +477,15 @@ const ChatInterface: React.FC = () => {
               </div>
             </div>
 
-            {/* 钱包连接组件 */}
+            {/* 钱包连接和交易历史按钮 */}
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsHistoryModalOpen(true)}
+                className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600"
+                title="Transaction History"
+              >
+                <History className="w-5 h-5" />
+              </button>
               <div className="flex items-center mr-48 px-4 py-2">
                 <DynamicWidget />
               </div>
@@ -592,6 +628,21 @@ const ChatInterface: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 投资执行模态框 */}
+      {lastIntent && (
+        <InvestmentExecutionModal
+          isOpen={isExecutionModalOpen}
+          onClose={() => setIsExecutionModalOpen(false)}
+          intent={lastIntent}
+        />
+      )}
+
+      {/* 交易历史模态框 */}
+      <TransactionHistoryModal
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
+      />
     </div>
   );
 };
