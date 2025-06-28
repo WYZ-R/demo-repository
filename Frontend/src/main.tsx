@@ -3,10 +3,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 // 钱包连接
-import "@rainbow-me/rainbowkit/styles.css";
 import { WagmiProvider, createConfig } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { mainnet } from "wagmi/chains";
 import {
   DynamicContextProvider,
