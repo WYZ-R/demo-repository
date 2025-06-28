@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle, 
   XCircle, 
@@ -13,10 +13,10 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { 
-  InvestmentExecutionStatus, 
-  InvestmentTransaction,
-  investmentService
-} from '../services/investmentService';
+  CCIPTransferStatus, 
+  CCIPTransfer,
+  useCCIPTransfer
+} from '../services/ccipService';
 
 interface TransactionHistoryModalProps {
   isOpen: boolean;
@@ -27,12 +27,20 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   isOpen, 
   onClose 
 }) => {
-  const [selectedTransaction, setSelectedTransaction] = useState<InvestmentTransaction | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<CCIPTransfer | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   
   // 获取交易历史
-  const transactions = investmentService.getTransactionHistory();
+  const { getTransferHistory } = useCCIPTransfer();
+  const [transactions, setTransactions] = useState<CCIPTransfer[]>([]);
+  
+  // 当模态框打开时加载交易历史
+  useEffect(() => {
+    if (isOpen) {
+      setTransactions(getTransferHistory());
+    }
+  }, [isOpen, getTransferHistory]);
   
   // 过滤交易
   const filteredTransactions = transactions.filter(tx => {
@@ -57,13 +65,13 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   });
 
   // 获取交易状态的颜色和图标
-  const getStatusInfo = (status: InvestmentExecutionStatus) => {
+  const getStatusInfo = (status: CCIPTransferStatus) => {
     switch (status) {
-      case InvestmentExecutionStatus.COMPLETED:
+      case CCIPTransferStatus.COMPLETED:
         return { color: 'text-green-500 bg-green-50', icon: <CheckCircle className="w-4 h-4" /> };
-      case InvestmentExecutionStatus.FAILED:
+      case CCIPTransferStatus.FAILED:
         return { color: 'text-red-500 bg-red-50', icon: <XCircle className="w-4 h-4" /> };
-      case InvestmentExecutionStatus.PROCESSING:
+      case CCIPTransferStatus.PROCESSING:
         return { color: 'text-blue-500 bg-blue-50', icon: <Loader2 className="w-4 h-4 animate-spin" /> };
       default:
         return { color: 'text-yellow-500 bg-yellow-50', icon: <AlertCircle className="w-4 h-4" /> };
@@ -109,9 +117,9 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
           <div className={`flex items-center space-x-2 px-3 py-2 rounded-lg ${color}`}>
             {icon}
             <span className="font-medium">
-              {selectedTransaction.status === InvestmentExecutionStatus.COMPLETED ? 'Completed' : 
-               selectedTransaction.status === InvestmentExecutionStatus.FAILED ? 'Failed' :
-               selectedTransaction.status === InvestmentExecutionStatus.PROCESSING ? 'Processing' : 'Pending'}
+              {selectedTransaction.status === CCIPTransferStatus.COMPLETED ? 'Completed' : 
+               selectedTransaction.status === CCIPTransferStatus.FAILED ? 'Failed' :
+               selectedTransaction.status === CCIPTransferStatus.PROCESSING ? 'Processing' : 'Pending'}
             </span>
           </div>
           
@@ -151,6 +159,11 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
               <div className="text-sm text-slate-500">Asset</div>
               <div className="font-semibold text-slate-800">{selectedTransaction.asset}</div>
             </div>
+          </div>
+          
+          <div className="p-3 bg-slate-50 rounded-lg">
+            <div className="text-sm text-slate-500">Receiver</div>
+            <div className="font-mono text-xs text-slate-800 truncate">{selectedTransaction.receiver}</div>
           </div>
           
           {selectedTransaction.txHash && (
@@ -212,7 +225,7 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 text-white">
             <h3 className="text-xl font-bold">Transaction History</h3>
             <p className="text-purple-100 text-sm">
-              View and track your investment transactions
+              View and track your cross-chain transactions
             </p>
           </div>
           
@@ -237,10 +250,10 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
                   className="appearance-none pl-10 pr-8 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 bg-white"
                 >
                   <option value="all">All Status</option>
-                  <option value={InvestmentExecutionStatus.COMPLETED}>Completed</option>
-                  <option value={InvestmentExecutionStatus.PROCESSING}>Processing</option>
-                  <option value={InvestmentExecutionStatus.FAILED}>Failed</option>
-                  <option value={InvestmentExecutionStatus.PENDING}>Pending</option>
+                  <option value={CCIPTransferStatus.COMPLETED}>Completed</option>
+                  <option value={CCIPTransferStatus.PROCESSING}>Processing</option>
+                  <option value={CCIPTransferStatus.FAILED}>Failed</option>
+                  <option value={CCIPTransferStatus.PENDING}>Pending</option>
                 </select>
                 <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
               </div>
@@ -274,9 +287,9 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
                           <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center ${color}`}>
                             {icon}
                             <span className="ml-1">
-                              {tx.status === InvestmentExecutionStatus.COMPLETED ? 'Completed' : 
-                               tx.status === InvestmentExecutionStatus.FAILED ? 'Failed' :
-                               tx.status === InvestmentExecutionStatus.PROCESSING ? 'Processing' : 'Pending'}
+                              {tx.status === CCIPTransferStatus.COMPLETED ? 'Completed' : 
+                               tx.status === CCIPTransferStatus.FAILED ? 'Failed' :
+                               tx.status === CCIPTransferStatus.PROCESSING ? 'Processing' : 'Pending'}
                             </span>
                           </span>
                           <span className="text-xs text-slate-500">

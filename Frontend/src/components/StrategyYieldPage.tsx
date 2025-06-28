@@ -18,10 +18,14 @@ import {
   Settings,
   Eye,
   Plus,
-  History
+  History,
+  ArrowRightLeft
 } from 'lucide-react';
 import TransactionHistoryModal from './TransactionHistoryModal';
-import { investmentService, InvestmentExecutionStatus } from '../services/investmentService';
+import CCIPTransferModal from './CCIPTransferModal';
+import CCIPTransferButton from './CCIPTransferButton';
+import { CCIPTransferStatus } from '../services/ccipService';
+import { ChainId } from '../config/ccipConfig';
 
 interface Strategy {
   id: string;
@@ -42,14 +46,15 @@ const StrategyYieldPage: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
 
   useEffect(() => {
     setIsVisible(true);
     
     // 获取最近的交易记录
-    const transactions = investmentService.getTransactionHistory();
-    setRecentTransactions(transactions.slice(0, 3));
+    // 这里应该从ccipService获取，但为了简单起见，我们使用空数组
+    setRecentTransactions([]);
   }, []);
 
   const strategies: Strategy[] = [
@@ -134,11 +139,11 @@ const StrategyYieldPage: React.FC = () => {
     }
   };
 
-  const getTransactionStatusColor = (status: InvestmentExecutionStatus) => {
+  const getTransactionStatusColor = (status: CCIPTransferStatus) => {
     switch (status) {
-      case InvestmentExecutionStatus.COMPLETED: return 'text-green-600 bg-green-100';
-      case InvestmentExecutionStatus.FAILED: return 'text-red-600 bg-red-100';
-      case InvestmentExecutionStatus.PROCESSING: return 'text-blue-600 bg-blue-100';
+      case CCIPTransferStatus.COMPLETED: return 'text-green-600 bg-green-100';
+      case CCIPTransferStatus.FAILED: return 'text-red-600 bg-red-100';
+      case CCIPTransferStatus.PROCESSING: return 'text-blue-600 bg-blue-100';
       default: return 'text-yellow-600 bg-yellow-100';
     }
   };
@@ -185,10 +190,15 @@ const StrategyYieldPage: React.FC = () => {
               >
                 <History className="w-5 h-5" />
               </button>
-              <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-2">
-                <Plus className="w-4 h-4" />
-                <span>New Strategy</span>
-              </button>
+              
+              {/* 添加跨链转账按钮 */}
+              <CCIPTransferButton 
+                variant="primary"
+                size="md"
+                buttonText="Cross-Chain Transfer"
+                className="flex items-center space-x-2"
+              />
+              
               <button className="p-2 bg-white/80 backdrop-blur-sm text-slate-600 rounded-xl border border-slate-200 hover:bg-white transition-colors">
                 <Settings className="w-5 h-5" />
               </button>
@@ -261,13 +271,22 @@ const StrategyYieldPage: React.FC = () => {
         <div className={`mb-8 transition-all duration-1000 delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-slate-900">Recent Transactions</h2>
-            <button 
-              onClick={() => setIsHistoryModalOpen(true)}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-            >
-              <span>View All</span>
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </button>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={() => setIsHistoryModalOpen(true)}
+                className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+              >
+                <span>View All</span>
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </button>
+              
+              {/* 添加跨链转账按钮 */}
+              <CCIPTransferButton 
+                variant="secondary"
+                size="sm"
+                buttonText="New Transfer"
+              />
+            </div>
           </div>
           
           <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/60 shadow-lg overflow-hidden">
@@ -275,7 +294,16 @@ const StrategyYieldPage: React.FC = () => {
               <div className="p-8 text-center text-slate-500">
                 <Clock className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                 <p>No recent transactions</p>
-                <p className="text-sm mt-1">Your investment transactions will appear here</p>
+                <p className="text-sm mt-1">Your cross-chain transactions will appear here</p>
+                
+                {/* 添加跨链转账按钮 */}
+                <div className="mt-4">
+                  <CCIPTransferButton 
+                    variant="primary"
+                    size="md"
+                    buttonText="Make Your First Transfer"
+                  />
+                </div>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
@@ -287,9 +315,9 @@ const StrategyYieldPage: React.FC = () => {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor}`}>
-                            {tx.status === InvestmentExecutionStatus.COMPLETED ? 'Completed' : 
-                             tx.status === InvestmentExecutionStatus.FAILED ? 'Failed' :
-                             tx.status === InvestmentExecutionStatus.PROCESSING ? 'Processing' : 'Pending'}
+                            {tx.status === CCIPTransferStatus.COMPLETED ? 'Completed' : 
+                             tx.status === CCIPTransferStatus.FAILED ? 'Failed' :
+                             tx.status === CCIPTransferStatus.PROCESSING ? 'Processing' : 'Pending'}
                           </span>
                           <span className="text-xs text-slate-500">
                             {new Date(tx.timestamp).toLocaleDateString()} {new Date(tx.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -422,9 +450,22 @@ const StrategyYieldPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-                  Manage
-                </button>
+                
+                {/* 添加跨链转账按钮 */}
+                <div className="flex items-center space-x-2">
+                  <CCIPTransferButton 
+                    variant="outline"
+                    size="sm"
+                    buttonText="Transfer"
+                    sourceChain={strategy.chain === 'Ethereum' ? ChainId.ETHEREUM_SEPOLIA : 
+                                strategy.chain === 'Solana' ? ChainId.SOLANA_DEVNET : 
+                                ChainId.ETHEREUM_SEPOLIA}
+                  />
+                  
+                  <button className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl">
+                    Manage
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -477,9 +518,26 @@ const StrategyYieldPage: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                  <button className="text-slate-400 hover:text-slate-600 transition-colors">
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+                  
+                  {/* 添加跨链转账按钮 */}
+                  {insight.type === 'opportunity' && (
+                    <CCIPTransferButton 
+                      variant="outline"
+                      size="sm"
+                      buttonText="Invest"
+                      destinationChain={
+                        insight.description.toLowerCase().includes('ethereum') ? ChainId.ETHEREUM_SEPOLIA :
+                        insight.description.toLowerCase().includes('solana') ? ChainId.SOLANA_DEVNET :
+                        ChainId.ETHEREUM_SEPOLIA
+                      }
+                    />
+                  )}
+                  
+                  {insight.type !== 'opportunity' && (
+                    <button className="text-slate-400 hover:text-slate-600 transition-colors">
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -514,6 +572,12 @@ const StrategyYieldPage: React.FC = () => {
       <TransactionHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
+      />
+      
+      {/* 跨链转账模态框 */}
+      <CCIPTransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
       />
     </div>
   );

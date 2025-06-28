@@ -16,12 +16,14 @@ import {
   Target,
   Loader2,
   History,
+  ArrowRightLeft
 } from "lucide-react";
 
 import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
 import { chatService, ChatMessage, InvestmentIntent } from "../services/chatService";
 import InvestmentExecutionModal from "./InvestmentExecutionModal";
 import TransactionHistoryModal from "./TransactionHistoryModal";
+import CCIPTransferButton from "./CCIPTransferButton";
 
 // 聊天会话接口定义，用于管理多个聊天对话
 interface ChatSession {
@@ -333,13 +335,25 @@ const ChatInterface: React.FC = () => {
           
           {/* 执行按钮 */}
           {(intent.intent === 'invest' || intent.intent === 'rebalance' || intent.intent === 'withdraw') && (
-            <button
-              onClick={handleExecuteInvestment}
-              className="px-3 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md flex items-center space-x-1"
-            >
-              <span>Execute</span>
-              <TrendingUp className="w-3 h-3 ml-1" />
-            </button>
+            <div className="flex items-center space-x-2">
+              <CCIPTransferButton 
+                variant="primary"
+                size="sm"
+                buttonText="Execute with CCIP"
+                destinationChain={
+                  intent.entities.chain?.toLowerCase().includes('solana') ? 
+                  ChainId.SOLANA_DEVNET : ChainId.ETHEREUM_SEPOLIA
+                }
+              />
+              
+              <button
+                onClick={handleExecuteInvestment}
+                className="px-3 py-1 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg text-sm font-medium hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-sm hover:shadow-md flex items-center space-x-1"
+              >
+                <span>Execute</span>
+                <TrendingUp className="w-3 h-3 ml-1" />
+              </button>
+            </div>
           )}
         </div>
         
@@ -479,6 +493,13 @@ const ChatInterface: React.FC = () => {
 
             {/* 钱包连接和交易历史按钮 */}
             <div className="flex items-center space-x-3">
+              {/* 添加跨链转账按钮 */}
+              <CCIPTransferButton 
+                variant="secondary"
+                size="sm"
+                buttonText="Cross-Chain Transfer"
+              />
+              
               <button
                 onClick={() => setIsHistoryModalOpen(true)}
                 className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-600"

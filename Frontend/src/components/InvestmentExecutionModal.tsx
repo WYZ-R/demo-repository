@@ -12,10 +12,12 @@ import {
 } from 'lucide-react';
 import { InvestmentIntent } from '../services/chatService';
 import { 
-  useInvestmentExecution, 
-  InvestmentExecutionStatus, 
-  InvestmentTransaction 
-} from '../services/investmentService';
+  useCCIPTransfer,
+  CCIPTransferStatus,
+  CCIPTransfer,
+  CCIPTransferRequest
+} from '../services/ccipService';
+import { ChainId, FeeTokenType } from '../config/ccipConfig';
 
 interface InvestmentExecutionModalProps {
   isOpen: boolean;
@@ -29,10 +31,10 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
   intent 
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(0);
-  const [transaction, setTransaction] = useState<InvestmentTransaction | null>(null);
+  const [transfer, setTransfer] = useState<CCIPTransfer | null>(null);
   const [error, setError] = useState<string | null>(null);
   
-  const { executeInvestment, isWalletConnected } = useInvestmentExecution();
+  const { executeTransfer, isWalletConnected, currentChain } = useCCIPTransfer();
 
   // 执行投资的步骤
   const steps = [
@@ -45,7 +47,7 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0);
-      setTransaction(null);
+      setTransfer(null);
       setError(null);
     }
   }, [isOpen]);
@@ -61,11 +63,27 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
       setCurrentStep(1); // 移动到处理步骤
       setError(null);
       
-      // 执行投资
-      const result = await executeInvestment(intent);
+      // 从意图中提取投资信息
+      const amount = intent.entities.amount?.toString() || 
+                    (intent.entities.percentage ? `${intent.entities.percentage}%` : '0');
+      const asset = intent.entities.asset_type || 'USDC';
+      const destinationChain = mapChainFromIntent(intent);
       
-      if (result.success && result.transaction) {
-        setTransaction(result.transaction);
+      // 创建CCIP转账请求
+      const transferRequest: CCIPTransferRequest = {
+        sourceChain: mapCurrentChainToChainId(currentChain),
+        destinationChain,
+        receiver: generateReceiverAddress(destinationChain),
+        amount,
+        asset,
+        feeToken: FeeTokenType.NATIVE // 默认使用原生代币支付费用
+      };
+      
+      // 执行转账
+      const result = await executeTransfer(transferRequest);
+      
+      if (result.success && result.transfer) {
+        setTransfer(result.transfer);
         setCurrentStep(2); // 移动到完成步骤
       } else {
         setError(result.error || 'Failed to execute investment');
@@ -78,14 +96,69 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
     }
   };
 
+  // 将当前连接的链映射到ChainId
+  const mapCurrentChainToChainId = (chain?: string): ChainId => {
+    if (!chain) return ChainId.ETHEREUM_SEPOLIA; // 默认
+    
+    const chainLower = chain.toLowerCase();
+    if (chainLower.includes('ethereum') || chainLower.includes('sepolia')) {
+      return ChainId.ETHEREUM_SEPOLIA;
+    } else if (chainLower.includes('solana')) {
+      return ChainId.SOLANA_DEVNET;
+    } else if (chainLower.includes('base')) {
+      return ChainId.BASE_SEPOLIA;
+    } else if (chainLower.includes('optimism')) {
+      return ChainId.OPTIMISM_SEPOLIA;
+    } else if (chainLower.includes('arbitrum')) {
+      return ChainId.ARBITRUM_SEPOLIA;
+    } else if (chainLower.includes('bsc')) {
+      return ChainId.BSC_TESTNET;
+    }
+    
+    return ChainId.ETHEREUM_SEPOLIA;
+  };
+
+  // 从意图中提取目标链
+  const mapChainFromIntent = (intent: InvestmentIntent): ChainId => {
+    if (!intent.entities.chain) return ChainId.SOLANA_DEVNET; // 默认
+    
+    const chainLower = intent.entities.chain.toLowerCase();
+    if (chainLower.includes('ethereum') || chainLower.includes('eth')) {
+      return ChainId.ETHEREUM_SEPOLIA;
+    } else if (chainLower.includes('solana') || chainLower.includes('sol')) {
+      return ChainId.SOLANA_DEVNET;
+    } else if (chainLower.includes('base')) {
+      return ChainId.BASE_SEPOLIA;
+    } else if (chainLower.includes('optimism') || chainLower.includes('op')) {
+      return ChainId.OPTIMISM_SEPOLIA;
+    } else if (chainLower.includes('arbitrum') || chainLower.includes('arb')) {
+      return ChainId.ARBITRUM_SEPOLIA;
+    } else if (chainLower.includes('bsc') || chainLower.includes('binance')) {
+      return ChainId.BSC_TESTNET;
+    }
+    
+    return ChainId.SOLANA_DEVNET;
+  };
+
+  // 生成接收地址（在实际应用中，这应该是用户输入的）
+  const generateReceiverAddress = (chain: ChainId): string => {
+    if (chain === ChainId.SOLANA_DEVNET) {
+      // 示例Solana地址
+      return 'EPUjBP3Xf76K1VKsDSc6GupBWE8uykNksCLJgXZn87CB';
+    } else {
+      // 示例EVM地址
+      return '0x9d087fC03ae39b088326b67fA3C788236645b717';
+    }
+  };
+
   // 获取交易状态的颜色和图标
-  const getStatusInfo = (status: InvestmentExecutionStatus) => {
+  const getStatusInfo = (status: CCIPTransferStatus) => {
     switch (status) {
-      case InvestmentExecutionStatus.COMPLETED:
+      case CCIPTransferStatus.COMPLETED:
         return { color: 'text-green-500', icon: <CheckCircle className="w-5 h-5" /> };
-      case InvestmentExecutionStatus.FAILED:
+      case CCIPTransferStatus.FAILED:
         return { color: 'text-red-500', icon: <XCircle className="w-5 h-5" /> };
-      case InvestmentExecutionStatus.PROCESSING:
+      case CCIPTransferStatus.PROCESSING:
         return { color: 'text-blue-500', icon: <Loader2 className="w-5 h-5 animate-spin" /> };
       default:
         return { color: 'text-yellow-500', icon: <AlertCircle className="w-5 h-5" /> };
@@ -143,28 +216,28 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
 
   // 渲染交易结果
   const renderTransactionResult = () => {
-    if (!transaction) return null;
+    if (!transfer) return null;
     
-    const { color, icon } = getStatusInfo(transaction.status);
+    const { color, icon } = getStatusInfo(transfer.status);
     
     return (
       <div className="space-y-4">
         <div className={`flex items-center justify-center space-x-2 ${color}`}>
           {icon}
           <span className="font-medium">
-            {transaction.status === InvestmentExecutionStatus.COMPLETED ? 'Transaction Completed' : 
-             transaction.status === InvestmentExecutionStatus.FAILED ? 'Transaction Failed' :
+            {transfer.status === CCIPTransferStatus.COMPLETED ? 'Transaction Completed' : 
+             transfer.status === CCIPTransferStatus.FAILED ? 'Transaction Failed' :
              'Transaction Processing'}
           </span>
         </div>
         
-        {transaction.txHash && (
+        {transfer.txHash && (
           <div className="p-3 bg-slate-50 rounded-lg">
             <div className="text-sm text-slate-500">Transaction Hash</div>
             <div className="font-mono text-xs text-slate-800 truncate">
-              {transaction.txHash}
+              {transfer.txHash}
               <a 
-                href={`https://etherscan.io/tx/${transaction.txHash}`} 
+                href={`https://etherscan.io/tx/${transfer.txHash}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center ml-2 text-blue-500 hover:text-blue-700"
@@ -175,13 +248,13 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
           </div>
         )}
         
-        {transaction.messageId && (
+        {transfer.messageId && (
           <div className="p-3 bg-slate-50 rounded-lg">
             <div className="text-sm text-slate-500">CCIP Message ID</div>
             <div className="font-mono text-xs text-slate-800 truncate">
-              {transaction.messageId}
+              {transfer.messageId}
               <a 
-                href={`https://ccip.chain.link/msg/${transaction.messageId}`} 
+                href={`https://ccip.chain.link/msg/${transfer.messageId}`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center ml-2 text-blue-500 hover:text-blue-700"
@@ -195,24 +268,24 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 bg-slate-50 rounded-lg">
             <div className="text-sm text-slate-500">From Chain</div>
-            <div className="font-semibold text-slate-800">{transaction.sourceChain}</div>
+            <div className="font-semibold text-slate-800">{transfer.sourceChain}</div>
           </div>
           
           <div className="p-3 bg-slate-50 rounded-lg">
             <div className="text-sm text-slate-500">To Chain</div>
-            <div className="font-semibold text-slate-800">{transaction.destinationChain}</div>
+            <div className="font-semibold text-slate-800">{transfer.destinationChain}</div>
           </div>
         </div>
         
         <div className="grid grid-cols-2 gap-3">
           <div className="p-3 bg-slate-50 rounded-lg">
             <div className="text-sm text-slate-500">Amount</div>
-            <div className="font-semibold text-slate-800">{transaction.amount}</div>
+            <div className="font-semibold text-slate-800">{transfer.amount}</div>
           </div>
           
           <div className="p-3 bg-slate-50 rounded-lg">
             <div className="text-sm text-slate-500">Asset</div>
-            <div className="font-semibold text-slate-800">{transaction.asset}</div>
+            <div className="font-semibold text-slate-800">{transfer.asset}</div>
           </div>
         </div>
       </div>
