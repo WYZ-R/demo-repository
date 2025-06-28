@@ -19,7 +19,8 @@ import {
 } from '../services/ccipService';
 import {
   ChainId,
-  FeeTokenType
+  FeeTokenType,
+  getExplorerUrl
 } from '../config/ccipConfig';
 
 interface CCIPTransferModalProps {
@@ -60,6 +61,9 @@ const CCIPTransferModal: React.FC<CCIPTransferModalProps> = ({
       // 如果提供了初始链，则使用它们
       if (initialSourceChain) setSourceChain(initialSourceChain);
       if (initialDestinationChain) setDestinationChain(initialDestinationChain);
+      
+      // 设置默认接收地址
+      setReceiver(generateDefaultReceiverAddress(destinationChain));
     }
   }, [isOpen, initialSourceChain, initialDestinationChain]);
 
@@ -98,6 +102,20 @@ const CCIPTransferModal: React.FC<CCIPTransferModalProps> = ({
     const temp = sourceChain;
     setSourceChain(destinationChain);
     setDestinationChain(temp);
+    
+    // 更新接收地址
+    setReceiver(generateDefaultReceiverAddress(temp));
+  };
+
+  // 生成默认接收地址
+  const generateDefaultReceiverAddress = (chain: ChainId): string => {
+    if (chain === ChainId.SOLANA_DEVNET) {
+      // 示例Solana地址
+      return 'EPUjBP3Xf76K1VKsDSc6GupBWE8uykNksCLJgXZn87CB';
+    } else {
+      // 示例EVM地址
+      return '0x9d087fC03ae39b088326b67fA3C788236645b717';
+    }
   };
 
   // 处理转账执行
@@ -198,7 +216,11 @@ const CCIPTransferModal: React.FC<CCIPTransferModalProps> = ({
             <div className="relative">
               <select
                 value={destinationChain}
-                onChange={(e) => setDestinationChain(e.target.value as ChainId)}
+                onChange={(e) => {
+                  const newDestChain = e.target.value as ChainId;
+                  setDestinationChain(newDestChain);
+                  setReceiver(generateDefaultReceiverAddress(newDestChain));
+                }}
                 className="w-full p-3 bg-white border border-slate-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
               >
                 {availableChains.map((chain) => (
@@ -322,7 +344,10 @@ const CCIPTransferModal: React.FC<CCIPTransferModalProps> = ({
                 {transfer.txHash}
               </div>
               <a 
-                href={`https://etherscan.io/tx/${transfer.txHash}`} 
+                href={getExplorerUrl(
+                  sourceChain as ChainId, 
+                  transfer.txHash
+                )} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="ml-2 text-blue-500 hover:text-blue-700"

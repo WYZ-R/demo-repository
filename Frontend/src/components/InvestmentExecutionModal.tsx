@@ -17,7 +17,7 @@ import {
   CCIPTransfer,
   CCIPTransferRequest
 } from '../services/ccipService';
-import { ChainId, FeeTokenType } from '../config/ccipConfig';
+import { ChainId, FeeTokenType, getExplorerUrl } from '../config/ccipConfig';
 
 interface InvestmentExecutionModalProps {
   isOpen: boolean;
@@ -237,7 +237,10 @@ const InvestmentExecutionModal: React.FC<InvestmentExecutionModalProps> = ({
             <div className="font-mono text-xs text-slate-800 truncate">
               {transfer.txHash}
               <a 
-                href={`https://etherscan.io/tx/${transfer.txHash}`} 
+                href={getExplorerUrl(
+                  mapCurrentChainToChainId(transfer.sourceChain), 
+                  transfer.txHash
+                )} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center ml-2 text-blue-500 hover:text-blue-700"

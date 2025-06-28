@@ -51,6 +51,11 @@ export interface CCIPTransferResult {
   error?: string;
 }
 
+// 后端API URL
+const API_URL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:3001/api'
+  : 'https://your-production-api.com/api';
+
 /**
  * CCIP跨链转账服务
  * 负责处理跨链转账操作
@@ -80,8 +85,8 @@ class CCIPService {
         id: `ccip-${Date.now()}`,
         timestamp: new Date(),
         status: CCIPTransferStatus.PROCESSING,
-        sourceChain: request.sourceChain,
-        destinationChain: request.destinationChain,
+        sourceChain: this.getChainName(request.sourceChain),
+        destinationChain: this.getChainName(request.destinationChain),
         amount: request.amount,
         asset: request.asset,
         sender: walletAddress,
@@ -92,21 +97,63 @@ class CCIPService {
       this.transfers.push(transfer);
       this.saveTransfersToStorage();
       
-      // 根据源链和目标链选择不同的转账方法
-      if (this.isEVMChain(request.sourceChain) && this.isEVMChain(request.destinationChain)) {
-        // EVM到EVM的转账
-        return await this.executeEVMToEVMTransfer(transfer, request);
-      } else if (this.isEVMChain(request.sourceChain) && this.isSVMChain(request.destinationChain)) {
-        // EVM到Solana的转账
-        return await this.executeEVMToSVMTransfer(transfer, request);
-      } else if (this.isSVMChain(request.sourceChain) && this.isEVMChain(request.destinationChain)) {
-        // Solana到EVM的转账
-        return await this.executeSVMToEVMTransfer(transfer, request);
+      // 调用后端API执行实际的转账
+      const response = await fetch(`${API_URL}/transfer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sourceChain: request.sourceChain,
+          destinationChain: request.destinationChain,
+          receiver: request.receiver,
+          amount: request.amount,
+          asset: request.asset,
+          feeToken: request.feeToken || FeeTokenType.NATIVE
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to execute transfer');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.transfer) {
+        // 更新转账状态
+        this.updateTransferStatus(transfer.id, 
+          result.transfer.status as CCIPTransferStatus, {
+          txHash: result.transfer.txHash,
+          messageId: result.transfer.messageId
+        });
+        
+        return {
+          success: true,
+          transfer: this.getTransferById(transfer.id)
+        };
       } else {
-        throw new Error(`Unsupported chain combination: ${request.sourceChain} to ${request.destinationChain}`);
+        // 更新转账状态为失败
+        this.updateTransferStatus(transfer.id, CCIPTransferStatus.FAILED, {
+          error: result.error || 'Unknown error'
+        });
+        
+        return {
+          success: false,
+          transfer: this.getTransferById(transfer.id),
+          error: result.error || 'Failed to execute transfer'
+        };
       }
     } catch (error) {
       console.error('CCIP transfer failed:', error);
+      
+      // 如果已经创建了转账记录，更新其状态
+      if (this.transfers.find(tx => tx.id === `ccip-${Date.now()}`)) {
+        this.updateTransferStatus(`ccip-${Date.now()}`, CCIPTransferStatus.FAILED, {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error during CCIP transfer'
@@ -180,165 +227,19 @@ class CCIPService {
   }
 
   /**
-   * 检查是否为EVM链
+   * 获取链名称
    * @param chainId 链ID
+   * @returns 链名称
    */
-  private isEVMChain(chainId: ChainId): boolean {
-    return chainId !== ChainId.SOLANA_DEVNET;
-  }
-
-  /**
-   * 检查是否为Solana链
-   * @param chainId 链ID
-   */
-  private isSVMChain(chainId: ChainId): boolean {
-    return chainId === ChainId.SOLANA_DEVNET;
-  }
-
-  /**
-   * 执行EVM到EVM的CCIP转账
-   * @param transfer 转账记录
-   * @param request 转账请求
-   */
-  private async executeEVMToEVMTransfer(
-    transfer: CCIPTransfer,
-    request: CCIPTransferRequest
-  ): Promise<CCIPTransferResult> {
+  private getChainName(chainId: ChainId): string {
     try {
-      // 获取源链和目标链配置
-      const sourceConfig = getEVMConfig(request.sourceChain);
-      const destConfig = getEVMConfig(request.destinationChain);
-      
-      console.log(`Executing EVM to EVM transfer: ${request.amount} ${request.asset} from ${sourceConfig.name} to ${destConfig.name}`);
-      
-      // 模拟转账延迟
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // 模拟成功结果
-      const mockTxHash = `0x${Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      const mockMessageId = `0x${Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      
-      // 更新转账状态
-      this.updateTransferStatus(transfer.id, CCIPTransferStatus.COMPLETED, {
-        txHash: mockTxHash,
-        messageId: mockMessageId
-      });
-      
-      return {
-        success: true,
-        transfer: this.getTransferById(transfer.id)
-      };
+      if (chainId === ChainId.SOLANA_DEVNET) {
+        return getCCIPSVMConfig(chainId).name;
+      } else {
+        return getEVMConfig(chainId).name;
+      }
     } catch (error) {
-      // 更新转账状态为失败
-      this.updateTransferStatus(transfer.id, CCIPTransferStatus.FAILED, {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return {
-        success: false,
-        transfer: this.getTransferById(transfer.id),
-        error: error instanceof Error ? error.message : 'Unknown error during EVM to EVM transfer'
-      };
-    }
-  }
-
-  /**
-   * 执行EVM到Solana的CCIP转账
-   * @param transfer 转账记录
-   * @param request 转账请求
-   */
-  private async executeEVMToSVMTransfer(
-    transfer: CCIPTransfer,
-    request: CCIPTransferRequest
-  ): Promise<CCIPTransferResult> {
-    try {
-      // 获取源链和目标链配置
-      const sourceConfig = getEVMConfig(request.sourceChain);
-      const destConfig = getCCIPSVMConfig(request.destinationChain);
-      
-      console.log(`Executing EVM to Solana transfer: ${request.amount} ${request.asset} from ${sourceConfig.name} to ${destConfig.name}`);
-      
-      // 模拟转账延迟
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // 模拟成功结果
-      const mockTxHash = `0x${Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      const mockMessageId = `0x${Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      
-      // 更新转账状态
-      this.updateTransferStatus(transfer.id, CCIPTransferStatus.COMPLETED, {
-        txHash: mockTxHash,
-        messageId: mockMessageId
-      });
-      
-      return {
-        success: true,
-        transfer: this.getTransferById(transfer.id)
-      };
-    } catch (error) {
-      // 更新转账状态为失败
-      this.updateTransferStatus(transfer.id, CCIPTransferStatus.FAILED, {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return {
-        success: false,
-        transfer: this.getTransferById(transfer.id),
-        error: error instanceof Error ? error.message : 'Unknown error during EVM to Solana transfer'
-      };
-    }
-  }
-
-  /**
-   * 执行Solana到EVM的CCIP转账
-   * @param transfer 转账记录
-   * @param request 转账请求
-   */
-  private async executeSVMToEVMTransfer(
-    transfer: CCIPTransfer,
-    request: CCIPTransferRequest
-  ): Promise<CCIPTransferResult> {
-    try {
-      // 获取源链和目标链配置
-      const sourceConfig = getCCIPSVMConfig(request.sourceChain);
-      const destConfig = getEVMConfig(request.destinationChain);
-      
-      console.log(`Executing Solana to EVM transfer: ${request.amount} ${request.asset} from ${sourceConfig.name} to ${destConfig.name}`);
-      
-      // 模拟转账延迟
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // 模拟成功结果
-      const mockTxHash = `${Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      const mockMessageId = `0x${Array.from({length: 64}, () => 
-        Math.floor(Math.random() * 16).toString(16)).join('')}`;
-      
-      // 更新转账状态
-      this.updateTransferStatus(transfer.id, CCIPTransferStatus.COMPLETED, {
-        txHash: mockTxHash,
-        messageId: mockMessageId
-      });
-      
-      return {
-        success: true,
-        transfer: this.getTransferById(transfer.id)
-      };
-    } catch (error) {
-      // 更新转账状态为失败
-      this.updateTransferStatus(transfer.id, CCIPTransferStatus.FAILED, {
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      
-      return {
-        success: false,
-        transfer: this.getTransferById(transfer.id),
-        error: error instanceof Error ? error.message : 'Unknown error during Solana to EVM transfer'
-      };
+      return chainId;
     }
   }
 }

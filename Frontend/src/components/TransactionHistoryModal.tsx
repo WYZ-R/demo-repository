@@ -17,6 +17,7 @@ import {
   CCIPTransfer,
   useCCIPTransfer
 } from '../services/ccipService';
+import { ChainId, getExplorerUrl } from '../config/ccipConfig';
 
 interface TransactionHistoryModalProps {
   isOpen: boolean;
@@ -93,6 +94,38 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // 获取交易浏览器URL
+  const getTransactionExplorerUrl = (tx: CCIPTransfer): string => {
+    if (!tx.txHash) return '#';
+    
+    // 尝试将源链名称映射到ChainId
+    const chainId = mapChainNameToChainId(tx.sourceChain);
+    if (!chainId) return `https://etherscan.io/tx/${tx.txHash}`;
+    
+    return getExplorerUrl(chainId, tx.txHash);
+  };
+
+  // 将链名称映射到ChainId
+  const mapChainNameToChainId = (chainName: string): ChainId | null => {
+    const nameLower = chainName.toLowerCase();
+    
+    if (nameLower.includes('ethereum') || nameLower.includes('sepolia')) {
+      return ChainId.ETHEREUM_SEPOLIA;
+    } else if (nameLower.includes('solana')) {
+      return ChainId.SOLANA_DEVNET;
+    } else if (nameLower.includes('base')) {
+      return ChainId.BASE_SEPOLIA;
+    } else if (nameLower.includes('optimism')) {
+      return ChainId.OPTIMISM_SEPOLIA;
+    } else if (nameLower.includes('arbitrum')) {
+      return ChainId.ARBITRUM_SEPOLIA;
+    } else if (nameLower.includes('bsc')) {
+      return ChainId.BSC_TESTNET;
+    }
+    
+    return null;
   };
 
   // 渲染交易详情
@@ -174,7 +207,7 @@ const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
                   {selectedTransaction.txHash}
                 </div>
                 <a 
-                  href={`https://etherscan.io/tx/${selectedTransaction.txHash}`} 
+                  href={getTransactionExplorerUrl(selectedTransaction)} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="ml-2 text-blue-500 hover:text-blue-700"
